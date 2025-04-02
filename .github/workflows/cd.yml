@@ -1,0 +1,46 @@
+# This workflow will create a GitHub release with the wheel package from CI artifacts
+name: Python CD Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'The ID of the CI workflow run to get artifacts from'
+        required: true
+  push:
+    tags:
+      - 'v*' # This will trigger the workflow when you push a tag starting with 'v'
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Download artifacts from CI workflow
+      uses: dawidd6/action-download-artifact@v2
+      with:
+        workflow: ci.yml
+        workflow_conclusion: success
+        name: python-package-distributions
+        path: dist
+        if_no_artifact_found: fail
+        # Use the run_id from inputs when manually triggered
+        run_id: ${{ github.event.inputs.run_id || '' }}
+        # If triggered by tag and no run_id specified, use the latest successful run
+        search_artifacts: ${{ github.event_name == 'push' && !github.event.inputs.run_id }}
+    
+    - name: Create GitHub Release
+      id: create_release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: dist/*.whl
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+        body_path: CHANGELOG.md
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
