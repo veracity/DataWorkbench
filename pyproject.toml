@@ -1,0 +1,24 @@
+[project]
+name = "dataworkbench"
+# version = "0"
+dynamic = ["version"]
+description = "SDK for connecting to Data Workbench"
+readme = "README.md"
+requires-python = ">=3.11"
+
+[project.optional-dependencies]
+non_databricks = ["pyspark>=3.5.0", "requests"]
+test = [
+    "pytest",
+    "pytest-cov",
+    "mock"
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+
+[tool.hatch.version]
+source = "env"
+variable = "PACKAGE_VERSION"  # Read version from an env variable
