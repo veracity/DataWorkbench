@@ -1,21 +1,17 @@
 # This workflow will create a GitHub release with the wheel package from CI artifacts
-name: cd
+name: CD
 
 on:
+  workflow_run:
+    workflows: ["CI"]
+    types: ["completed"]
+    branches: ["main"]
   workflow_dispatch:
-     workflows: ["ci"]
-     types:
-      - completed
 
 jobs:
-  # prerelease:
-  #   if: ${{github.event_name == 'push' }} and ${{ github.event.workflow_run.conclusion == 'success' }} # Ensure it's only from push
-  #   environment: PreProduction
-
   approval:
    name: Manual Approval
    runs-on: ubuntu-latest
-   needs: prerelease
    if: success() # Only proceed if terraform-plan job succeeds
    permissions:
      issues: write
@@ -24,13 +20,13 @@ jobs:
         uses: trstringer/manual-approval@v1
         with:
           secret: ${{ github.TOKEN }}
-          approvers: hanyfakhry
+          approvers: hanyfakhry,westrheim
           minimum-approvals: 1
           issue-title: "Manual Approval Required for Terraform Apply"
-          issue-body: "Please approve or deny the deployment."  
+          issue-body: "Please approve or deny the deployment."
 
   release:
-    if: ${{github.event_name == 'push' }} and success() # Ensure it's only from push
+    if: success()
     environment: Production
     needs: approval
     name: Create Release
@@ -49,6 +45,7 @@ jobs:
         path: dist
         if_no_artifact_found: fail
 
+
     - name: Create and push tag
       run: |
           VERSION=$(python -c "import re; print(re.search(r'version=['\"]([^'\"]+)['\"]', open('setup.py').read()).group(1))")
@@ -57,7 +54,7 @@ jobs:
           git config --local user.name "GitHub Action"
           git tag -a "$TAG" -m "Release $TAG - Automated tag"
           git push origin "$TAG"
-          echo "Created and pushed tag: $TAG"    
+          echo "Created and pushed tag: $TAG"
     
     - name: Create GitHub Release
       id: create_release
