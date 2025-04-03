@@ -46,6 +46,7 @@ jobs:
       with:
         name: test-results-${{ matrix.python-version }}
         path: test-results-${{ matrix.python-version }}.xml
+      if: ${{ always() }}
 
     # Step to upload the coverage report as an artifact
     - name: Upload coverage report as artifact
@@ -53,6 +54,7 @@ jobs:
       with:
         name: coverage-report-${{ matrix.python-version }}
         path: coverage.xml
+      if: ${{ always() }}
 
     
 
