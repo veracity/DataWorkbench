@@ -33,12 +33,12 @@ jobs:
     - name: Install Test Dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pytest
+        pip install pytest pytest-cov
         pip install .[test,non_databricks]  # Install main dependencies + test dependencies
 
     - name: Run pytest
       run: |
-        pytest --junitxml=test-results.xml --cov=your_project --cov-report=xml
+        pytest --junitxml=test-results.xml --cov=dataworkbench --cov-report=xml tests/
         
     - name: Upload pytest test results
       uses: actions/upload-artifact@v4
