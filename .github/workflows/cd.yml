@@ -44,23 +44,12 @@ jobs:
         name: python-package-distributions
         path: dist
         if_no_artifact_found: fail
-
-
-    - name: Create and push tag
-      run: |
-          VERSION=$(python -c "import re; print(re.search(r'version=['\"]([^'\"]+)['\"]', open('setup.py').read()).group(1))")
-          TAG="v${{ VERSION }}"
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git tag -a "$TAG" -m "Release $TAG - Automated tag"
-          git push origin "$TAG"
-          echo "Created and pushed tag: $TAG"
     
     - name: Create GitHub Release
       id: create_release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: latest
+        tag_name: "0.1.${{ github.run_number }}"
         files: dist/*.whl
         draft: false
         prerelease: false
