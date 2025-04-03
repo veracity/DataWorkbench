@@ -38,14 +38,25 @@ jobs:
 
     - name: Run pytest
       run: |
-        pytest --junitxml=test-results.xml --cov=dataworkbench --cov-report=xml tests/
+        pytest --junitxml=test-results-${{ matrix.python-version }}.xml --cov=dataworkbench --cov-report=xml tests/
         
-    - name: Upload pytest test results
+    # Step to upload the test results as an artifact
+    - name: Upload test results as artifact
       uses: actions/upload-artifact@v4
       with:
-        name: pytest-results-${{ matrix.python-version }}
-        path: junit/test-results-${{ matrix.python-version }}.xml
+        name: test-results-${{ matrix.python-version }}
+        path: test-results-${{ matrix.python-version }}.xml
       if: ${{ always() }}
+
+    # Step to upload the coverage report as an artifact
+    - name: Upload coverage report as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report-${{ matrix.python-version }}
+        path: coverage.xml
+      if: ${{ always() }}
+
+    
 
   build-package:
     needs: build-tests
