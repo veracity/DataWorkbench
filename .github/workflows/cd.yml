@@ -1,5 +1,5 @@
 # This workflow will create a GitHub release with the wheel package from CI artifacts
-name: Python CD Pipeline
+name: cd
 
 on:
   workflow_dispatch:
