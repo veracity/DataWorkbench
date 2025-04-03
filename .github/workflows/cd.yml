@@ -23,6 +23,7 @@ jobs:
     - name: Download artifacts from CI workflow
       uses: dawidd6/action-download-artifact@v6
       with:
+        tag_name: latest
         workflow: ci.yml
         workflow_conclusion: success
         name: python-package-distributions
@@ -35,7 +36,7 @@ jobs:
     
     - name: Create GitHub Release
       id: create_release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: dist/*.whl
         draft: false
