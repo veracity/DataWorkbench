@@ -23,7 +23,6 @@ jobs:
     - name: Download artifacts from CI workflow
       uses: dawidd6/action-download-artifact@v6
       with:
-        tag_name: latest
         workflow: ci.yml
         workflow_conclusion: success
         name: python-package-distributions
@@ -38,6 +37,7 @@ jobs:
       id: create_release
       uses: softprops/action-gh-release@v2
       with:
+        tag_name: latest
         files: dist/*.whl
         draft: false
         prerelease: false
