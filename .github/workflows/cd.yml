@@ -12,7 +12,6 @@ jobs:
   release:
     if: success()
     environment: Production
-    needs: approval
     name: Create Release
     runs-on: ubuntu-latest
     
