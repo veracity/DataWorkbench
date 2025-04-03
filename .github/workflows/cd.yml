@@ -19,7 +19,7 @@ jobs:
    if: success() # Only proceed if terraform-plan job succeeds
    permissions:
      issues: write
-     steps:
+   steps:
       - name: Await Manual Approval
         uses: trstringer/manual-approval@v1
         with:
