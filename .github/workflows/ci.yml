@@ -2,9 +2,10 @@ name: CI
 
 on:
   push:
-    branches: [ $default-branch ]
+    branches: [ main ]
   pull_request:
-    branches: [ $default-branch ]
+    branches: [ main ]
+    types: [ opened, synchronize, reopened ]
   workflow_dispatch:
 
 
@@ -80,6 +81,7 @@ jobs:
         python -m build -w
 
     - name: Publish package artifact
+      if: github.event_name == 'push'
       uses: actions/upload-artifact@v4
       with:
         name: python-package-distributions
