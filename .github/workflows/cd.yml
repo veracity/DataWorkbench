@@ -9,33 +9,13 @@ on:
   workflow_dispatch:
 
 jobs:
-  approval:
-   name: Manual Approval
-   runs-on: ubuntu-latest
-   if: success() # Only proceed if terraform-plan job succeeds
-   permissions:
-     issues: write
-   steps:
-      - name: Await Manual Approval
-        uses: trstringer/manual-approval@v1
-        with:
-          secret: ${{ github.TOKEN }}
-          approvers: hanyfakhry,westrheim
-          minimum-approvals: 1
-          issue-title: "Manual Approval Required for Terraform Apply"
-          issue-body: "Please approve or deny the deployment."
-
-  release:
+  prerelease:
     if: success()
     environment: Production
-    needs: approval
-    name: Create Release
+    name: Create PreRelease
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
     - name: Download artifacts from CI workflow
       uses: dawidd6/action-download-artifact@v6
       with:
@@ -44,27 +24,55 @@ jobs:
         name: python-package-distributions
         path: dist
         if_no_artifact_found: fail
-
-
-    - name: Create and push tag
-      run: |
-          VERSION=$(python -c "import re; print(re.search(r'version=['\"]([^'\"]+)['\"]', open('setup.py').read()).group(1))")
-          TAG="v${{ VERSION }}"
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git tag -a "$TAG" -m "Release $TAG - Automated tag"
-          git push origin "$TAG"
-          echo "Created and pushed tag: $TAG"
     
+    - name: Read Ci metadata
+      id: ci-metadata
+      run: |
+          RUN_NUMBER=$(cat artifacts/run_number.txt)
+          echo "ci_run_number=$RUN_NUMBER" >> $GITHUB_OUTPUT
+
     - name: Create GitHub Release
       id: create_release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: latest
+        tag_name: "0.1.${{ github.run_number }}-prerelease"
         files: dist/*.whl
-        draft: false
-        prerelease: false
-        generate_release_notes: true
-        body_path: CHANGELOG.md
+        draft: true
+        prerelease: true
+        generate_release_notes: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release:
+    if: success()
+    environment: Production
+    name: Create PreRelease
+    runs-on: ubuntu-latest
+    needs: prerelease
+    steps:
+    - name: Download artifacts from CI workflow
+      uses: dawidd6/action-download-artifact@v6
+      with:
+        workflow: ci.yml
+        workflow_conclusion: success
+        name: python-package-distributions
+        path: dist
+        if_no_artifact_found: fail
+    
+    - name: Read Ci metadata
+      id: ci-metadata
+      run: |
+          RUN_NUMBER=$(cat artifacts/run_number.txt)
+          echo "ci_run_number=$RUN_NUMBER" >> $GITHUB_OUTPUT
+
+    - name: Create GitHub Release
+      id: create_release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: "0.1.${{ github.run_number }}"
+        files: dist/*.whl
+        draft: false
+        prerelease: true
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}      
