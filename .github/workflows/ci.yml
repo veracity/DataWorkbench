@@ -80,6 +80,12 @@ jobs:
       run: |
         python -m build -w
 
+    - name: Find and rename .whl file
+      run: |
+        # Find the .whl file using a wildcard and rename it
+        WHL_FILE=$(find . -type f -name "*.whl" -print -quit)
+        mv "$WHL_FILE" dist/dataworkbench-latest-py3-none-any.whl
+
     - name: Log package version number
       if: github.event_name == 'push'
       run: |
