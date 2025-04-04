@@ -48,7 +48,7 @@ jobs:
     environment: Production
     name: Create PreRelease
     runs-on: ubuntu-latest
-    needs: pre-release
+    needs: prerelease
     steps:
     - name: Download artifacts from CI workflow
       uses: dawidd6/action-download-artifact@v6
