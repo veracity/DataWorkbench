@@ -25,6 +25,12 @@ jobs:
         path: dist
         if_no_artifact_found: fail
     
+    - name: Read Ci metadata
+      id: ci-metadata
+      run: |
+          RUN_NUMBER=$(cat artifacts/run_number.txt)
+          echo "ci_run_number=$RUN_NUMBER" >> $GITHUB_OUTPUT
+
     - name: Create GitHub Release
       id: create_release
       uses: softprops/action-gh-release@v2
@@ -34,6 +40,5 @@ jobs:
         draft: false
         prerelease: false
         generate_release_notes: true
-        #body_path: CHANGELOG.md
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
