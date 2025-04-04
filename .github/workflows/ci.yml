@@ -91,7 +91,7 @@ jobs:
       if: github.event_name == 'push'
       run: |
         # Create a file with just the run number for easier parsing
-        echo "${{ github.run_number }}" > build_metadata.txt
+        echo "${{ github.run_number }}" > package-version.txt
 
     - name: Publish package version number
       if: github.event_name == 'push'
