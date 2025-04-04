@@ -80,15 +80,23 @@ jobs:
       run: |
         python -m build -w
 
-    - name: Generate build metadata
-      if: github.event_name == 'push'
-      run: |
-        # Create a file with just the run number for easier parsing
-        echo "${{ github.run_number }}" > build_metadata.txt
-
     - name: Publish package artifact
       if: github.event_name == 'push'
       uses: actions/upload-artifact@v4
       with:
         name: python-package-distributions
         path: dist/
+
+    - name: Log package version number
+      if: github.event_name == 'push'
+      run: |
+        # Create a file with just the run number for easier parsing
+        echo "${{ github.run_number }}" > build_metadata.txt
+
+    - name: Publish package version number
+      if: github.event_name == 'push'
+      uses: actions/upload-artifact@v4
+      with:
+        name: package-version
+        path: package-version.txt
+
