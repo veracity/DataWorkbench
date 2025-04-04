@@ -14,6 +14,8 @@ jobs:
     environment: Production
     name: Create PreRelease
     runs-on: ubuntu-latest
+    outputs:
+      package_version: ${{ steps.ci-metadata.outputs.ci_run_number }}
     
     steps:
     - name: Download artifacts from CI workflow
@@ -54,7 +56,7 @@ jobs:
       id: create_release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: "${{ needs.prerelease.outputs.ci_run_number }}"
+        tag_name: "${{ needs.prerelease.outputs.package_version }}"
         draft: false
         prerelease: false
         generate_release_notes: true
