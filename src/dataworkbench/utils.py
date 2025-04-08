@@ -47,4 +47,3 @@ def get_secret(key: str, scope: str = "secrets") -> str:
 if __name__ == "__main__":
     CLIENT_ID = get_secret("ClientId")
     CLIENT_SECRET = get_secret("ClientSecret")
-    print(f"client-id: {CLIENT_ID}")
