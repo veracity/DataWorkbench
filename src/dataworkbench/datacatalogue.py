@@ -35,8 +35,7 @@ class DataCatalogue:
         """
         self.storage: DeltaStorage = DeltaStorage()
         self.gateway: Gateway = Gateway()
-        self.workspace_id: str = get_secret("DwbWorkspaceId")
-        self.storage_account_name: str = get_secret("ByodStorageName")
+        self.storage_base_url: str = get_secret("StorageBaseUrl")
     
     def __build_storage_url(self, folder_id: str) -> str:
         """
@@ -51,7 +50,6 @@ class DataCatalogue:
         Example:
             >>> catalogue = DataCatalogue()
             >>> catalogue._build_storage_url("abc123")
-            'abfss://workspace-id@storage-name.dfs.core.windows.net/abc123/Processed'
         """
         if not isinstance(folder_id, str):
             raise TypeError("folder_id must be a string")
@@ -59,7 +57,7 @@ class DataCatalogue:
         if not folder_id:
             raise ValueError("folder_id cannot be empty")
             
-        return f"abfss://{self.workspace_id}@{self.storage_account_name}.dfs.core.windows.net/{folder_id}/Processed"
+        return f"{self.storage_base_url}/{folder_id}/Processed"
     
     def save(
         self,

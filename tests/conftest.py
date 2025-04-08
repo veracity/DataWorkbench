@@ -14,7 +14,8 @@ def setenvvar(monkeypatch):
             "ApimTokenUrl": "http://mock-apim-token-url.com",
             "ApimClientId": "mock-apim-client-id",
             "ApimClientSecret": "mock-apim-client-secret",
-            "ApimScope": "mock-apim-scope"
+            "ApimScope": "mock-apim-scope",
+            "StorageBaseUrl": "mock-storage-url"
         }
 
         for k, v in envvars.items():
