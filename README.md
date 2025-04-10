@@ -15,7 +15,7 @@
 # DataWorkbench
 
 ## What is it?
-Veracity DataWorkbench is a Python SDK designed to bridge your Python environment with Veracity DataWorkbench services. It simplifies access to data cataloging, lineage tracking, and APIs — supporting efficient data workflows across local and cloud environments such as Databricks
+Veracity DataWorkbench is a Python SDK designed to bridge your Databricks environment with Veracity Data Workbench. It simplifies access to data cataloging, lineage tracking, and APIs.
 
 
 ## Table of Contents
