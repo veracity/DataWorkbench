@@ -1,7 +1,6 @@
 import pytest
 import requests
 from unittest.mock import patch, MagicMock
-from dataworkbench.auth import TokenManager
 from dataworkbench.gateway import Gateway
 
 @pytest.fixture
@@ -9,7 +8,7 @@ def mock_gateway():
     """Fixture to mock the Gateway instance."""
     with patch("dataworkbench.auth.TokenManager.get_token", return_value="mock_token"), \
          patch("dataworkbench.storage.DeltaStorage"), \
-         patch("dataworkbench.gateway.Gateway") as MockGateway:
+         patch("dataworkbench.gateway.Gateway"):
 
         gateway_instance = Gateway()
         return gateway_instance
