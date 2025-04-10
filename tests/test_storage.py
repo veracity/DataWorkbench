@@ -13,9 +13,9 @@ def mock_df():
     """Fixture to create a mock DataFrame with a writable attribute."""
     mock_df = MagicMock(spec=DataFrame)
     mock_write = MagicMock()
-    
+
     # Simulate DataFrame.write property
-    mock_df.write = mock_write  
+    mock_df.write = mock_write
 
     # Mock method chaining: format().mode().save()
     mock_write.format.return_value = mock_write

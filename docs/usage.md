@@ -1,10 +1,10 @@
 # Data Workbench Library Documentation
 
-  
+
 
 ## Overview
 The Data Workbench library provides a robust solution for storing and registering datasets in the dataworkbench ecosystem. With this library, you can easily write datasets back to dataworkbench.
-  
+
 
 ## Installation
 TODO
@@ -16,19 +16,19 @@ TODO
 ```python
 
 from dataworkbench.publisher import DataPublisher
-  
+
 
 # Create a sample DataFrame
 
 df = spark.createDataFrame([("Alice", 30), ("Bob", 40)], ["name", "age"])
 
-  
+
 
 # Initialize the DataPublisher
 
 publisher = DataPublisher()
 
-  
+
 
 # Save dataset
 
@@ -42,53 +42,53 @@ result = publisher.save_dataset(
 
 )
 
-  
+
 
 print(f"Dataset registered with ID: {result['dataset_id']}")
 
 ```
 
-  
+
 
 ## Core Components
 
-  
+
 
 The library consists of the main components:
 
-  
+
 
 1. **DataPublisher**: Handles dataset storage and registration
 
-  
+
 
 ## DataPublisher
 
-  
+
 
 The `DataPublisher` class is the main entry point for interacting with the library.
 
-  
+
 
 ### Initialization
 
-  
+
 
 ```python
 
 from dataworkbench.publisher import DataPublisher
 
-  
+
 
 publisher = DataPublisher()
 
 ```
 
-  
+
 
 ### Save a Dataset
 
-  
+
 
 ```python
 
@@ -112,7 +112,7 @@ result = publisher.save_dataset(
 
 ```
 
-  
+
 
 #### Parameters:
 
@@ -130,18 +130,17 @@ result = publisher.save_dataset(
 
 - **dataset_id** (optional): Dataset identifier, must be provided if mode is append.
 
-  
+
 
 #### Return Value:
 
 Dictionary containing the registration details or error information.
 
 
-## Best Practices  
+## Best Practices
 
 1. **Use Descriptive Dataset Names and Descriptions**: - Makes it easier to find and understand datasets in the catalog
 
 2. **Add Metadata Tags**: - Use tags to categorize datasets and improve searchability
 
 3. **Use Append Mode Judiciously**: - Append mode is efficient for incremental data loads
-  

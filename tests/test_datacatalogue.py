@@ -24,8 +24,8 @@ def test_save_dataset(mock_write, mock_gateway_import, mock_dependencies):
     datacatalogue, _, _ = mock_dependencies
 
     result = datacatalogue.save(
-        df=MagicMock(spec=DataFrame), 
-        dataset_name="test_dataset", 
+        df=MagicMock(spec=DataFrame),
+        dataset_name="test_dataset",
         dataset_description="test description"
     )
 

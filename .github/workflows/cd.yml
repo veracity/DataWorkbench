@@ -17,7 +17,7 @@ jobs:
       contents: write
     outputs:
       package_version: ${{ steps.ci-metadata.outputs.ci_run_number }}
-    
+
     steps:
     - name: Download artifacts from CI workflow
       uses: dawidd6/action-download-artifact@v6
@@ -27,7 +27,7 @@ jobs:
         name: python-package-distributions
         path: dist
         if_no_artifact_found: fail
-    
+
     - name: Read Ci metadata
       id: ci-metadata
       run: |
@@ -45,7 +45,7 @@ jobs:
         generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  
+
 
   release:
     if: success()
@@ -65,4 +65,4 @@ jobs:
         prerelease: false
         generate_release_notes: true
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}      
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

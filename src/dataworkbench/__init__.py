@@ -7,6 +7,4 @@ try:
 except importlib.metadata.PackageNotFoundError:
     print("Package not installed")
 
-__all__ = [
-    "DataCatalogue"
-]
+__all__ = ["DataCatalogue"]
