@@ -39,7 +39,7 @@ class DataCatalogue:
         self.gateway: Gateway = Gateway()
         self.storage_base_url: str = get_secret("StorageBaseUrl")
 
-    def __build_storage_url(self, folder_id: str) -> str:
+    def __build_storage_url(self, folder_id: uuid.UUID) -> str:
         """
         Build the ABFSS URL for the target storage location.
 
@@ -53,8 +53,8 @@ class DataCatalogue:
             >>> catalogue = DataCatalogue()
             >>> catalogue._build_storage_url("abc123")
         """
-        if not isinstance(folder_id, str):
-            raise TypeError("folder_id must be a string")
+        if not isinstance(folder_id, uuid.UUID):
+            raise TypeError("folder_id must be uuid")
 
         if not folder_id:
             raise ValueError("folder_id cannot be empty")
@@ -116,7 +116,7 @@ class DataCatalogue:
             raise TypeError("tags must be a dictionary or None")
 
         # Generate folder_id
-        folder_id = str(uuid.uuid4())
+        folder_id = uuid.uuid4()
 
         target_path = self.__build_storage_url(folder_id)
 
