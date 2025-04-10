@@ -62,28 +62,6 @@ datacatalogue = DataCatalogue()  # Naming subject to change
 datacatalogue.save(df, "Dataset Name", "Description", tags={"environment": ["test"]})
 ```
 
-## Configuration
-
-When using Dataworkbench locally, you need to configure the following environment variables:
-
-```python
-# Required for local machine setup
-import os
-
-os.environ["ApimClientId"] = "your-apim-client-id"
-os.environ["ApimClientSecret"] = "your-apim-client-secret"
-os.environ["ApimScope"] = "your-apim-scope"
-```
-
-Alternatively, create a `.env` file or use a configuration file:
-
-```
-# .env file example
-ApimClientId=your-apim-client-id
-ApimClientSecret=your-apim-client-secret
-ApimScope=your-apim-scope
-```
-
 ## Examples
 
 ### Saving a Spark DataFrame to the Data Catalogue
