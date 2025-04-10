@@ -15,7 +15,7 @@
 # DataWorkbench
 
 ## What is it?
-Veracity DataWorkbench is a Python SDK designed to bridge your Python environment with Veracity DataWorkbench services. It simplifies access to data cataloging, lineage tracking, and APIs — supporting efficient data workflows across local and cloud environments such as Databricks
+Veracity DataWorkbench is a Python SDK designed to bridge your Databricks environment with Veracity Data Workbench. It simplifies access to data cataloging, lineage tracking, and APIs.
 
 
 ## Table of Contents
@@ -60,28 +60,6 @@ df = spark.createDataFrame([("a", 1), ("b", 2), ("c", 3)], ["letter", "number"])
 
 datacatalogue = DataCatalogue()  # Naming subject to change
 datacatalogue.save(df, "Dataset Name", "Description", tags={"environment": ["test"]})
-```
-
-## Configuration
-
-When using Dataworkbench locally, you need to configure the following environment variables:
-
-```python
-# Required for local machine setup
-import os
-
-os.environ["ApimClientId"] = "your-apim-client-id"
-os.environ["ApimClientSecret"] = "your-apim-client-secret"
-os.environ["ApimScope"] = "your-apim-scope"
-```
-
-Alternatively, create a `.env` file or use a configuration file:
-
-```
-# .env file example
-ApimClientId=your-apim-client-id
-ApimClientSecret=your-apim-client-secret
-ApimScope=your-apim-scope
 ```
 
 ## Examples
