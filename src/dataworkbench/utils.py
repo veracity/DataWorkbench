@@ -23,7 +23,7 @@ def is_databricks():
     return os.getenv("DATABRICKS_RUNTIME_VERSION") is not None
 
 
-def get_secret(key: str, scope: str = "secrets") -> str:
+def get_secret(key: str, scope: str = "dwsecrets") -> str:
     """
     Retrieve a secret from dbutils if running on Databricks, otherwise fallback to env variables.
     """
