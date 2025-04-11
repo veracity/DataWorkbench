@@ -90,7 +90,7 @@ datacatalogue.save(
 
 ### DataCatalogue
 
-- `save(df, name, description=None, tags=None)`: Save a Spark DataFrame to the Data Workbench Data Catalogue
+- `save(df, name, description, schema_id=None, tags=None)`: Save a Spark DataFrame to the Data Workbench Data Catalogue
 
 
 ## License
