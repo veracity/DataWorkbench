@@ -51,35 +51,46 @@ import dataworkbench
 
 To use it on your local machine, it requires you to set a set of variables to connect to the Veracity Dataworkbench API.
 
-### Basic Example
 
-```python
-from dataworkbench import DataCatalogue
-
-df = spark.createDataFrame([("a", 1), ("b", 2), ("c", 3)], ["letter", "number"])
-
-datacatalogue = DataCatalogue()  # Naming subject to change
-datacatalogue.save(df, "Dataset Name", "Description", tags={"environment": ["test"]})
-```
 
 ## Examples
 
 ### Saving a Spark DataFrame to the Data Catalogue
-
 ```python
 from dataworkbench import DataCatalogue
 
 df = spark.createDataFrame([("a", 1), ("b", 2), ("c", 3)], ["letter", "number"])
 
-datacatalogue = DataCatalogue()  # Naming subject to change
-datacatalogue.save(df, "Dataset Name", "Description", tags={"environment": ["test"]})
+datacatalogue = DataCatalogue()
+datacatalogue.save(
+    df,
+    "Dataset Name",
+    "Description",
+    tags={"environment": ["test"]}
+)  # schema_id is optional - if not provided, schema will be inferred from the dataframe
+```
+#### Using an existing schema
+When you have an existing schema that you want to reuse:
+```python
+from dataworkbench import DataCatalogue
+
+df = spark.createDataFrame([("a", 1), ("b", 2), ("c", 3)], ["letter", "number"])
+
+datacatalogue = DataCatalogue()
+datacatalogue.save(
+    df,
+    "Dataset Name",
+    "Description",
+    tags={"environment": ["test"]},
+    schema_id="abada0f7-acb4-43cf-8f54-b51abd7ba8b1"  # Using an existing schema ID
+)
 ```
 
 ## API Reference
 
 ### DataCatalogue
 
-- `save(df, name, description=None, tags=None)`: Save a Spark DataFrame to the Data Workbench Data Catalogue
+- `save(df, name, description, schema_id=None, tags=None)`: Save a Spark DataFrame to the Data Workbench Data Catalogue
 
 
 ## License
