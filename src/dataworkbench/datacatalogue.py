@@ -150,7 +150,7 @@ class DataCatalogue:
         """
         try:
             # Recursively delete the directory
-            self.storage.delete_directory(target_path, recursive=True)
+            self.storage.delete(target_path, recursive=True)
 
             # Log the successful rollback
             logger.info(f"Successfully rolled back data write operation by deleting: {target_path}")

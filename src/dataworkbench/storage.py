@@ -4,6 +4,7 @@ from pyspark.sql.utils import AnalysisException
 from abc import ABC, abstractmethod
 
 from dataworkbench.log import setup_logger
+from pyspark.dbutils import DBUtils  # type: ignore
 
 # Configure logging
 logger = setup_logger(__name__)
@@ -86,7 +87,7 @@ class DeltaStorage(Storage):
     reading Delta tables and checking path existence.
     """
 
-    def __init__(self, spark_session: SparkSession | None = None):
+    def __init__(self, spark_session: SparkSession | None = None, dbutils: DBUtils | None = None):
         """
         Initialize the Delta Storage Writer.
 
@@ -98,6 +99,7 @@ class DeltaStorage(Storage):
             raise TypeError("spark_session must be a SparkSession or None")
 
         self._spark = spark_session
+        self._dbutils = dbutils
 
     @property
     def spark(self) -> SparkSession:
@@ -121,6 +123,17 @@ class DeltaStorage(Storage):
                 raise RuntimeError("No SparkSession available") from e
 
         return self._spark
+    
+    @property
+    def dbutils(self) -> DBUtils:
+        if self._dbutils is None:
+            try:
+                self._dbutils = DBUtils(self.spark)
+            except Exception as e:
+                logger.error(f"Failed to create dbutils: {e}")
+                raise RuntimeError("No dbutils available") from e
+
+        return self._dbutils
 
     def write(
         self,
@@ -284,52 +297,47 @@ class DeltaStorage(Storage):
             error_msg = f"Failed to read data from {source_path}: {e}"
             logger.error(error_msg)
             raise RuntimeError(error_msg) from e
+    
+    def file_exists(self, path):
+        try:
+            self.dbutils.fs.ls(path)
+            return True
+        except Exception as e:
+            if 'java.io.FileNotFoundException' in str(e):
+                return False
+            else:
+                raise
         
-    def delete_directory(self, directory_path: str, recursive: bool = True) -> None:
+    def delete(self, path: str, recursive: bool = True) -> None:
         """
         Delete a directory from Azure Storage using Spark.
         
         Args:
-            directory_path: The path to the directory in Azure Storage to delete
+            path: The path to the file / directory in Azure Storage to delete
             recursive: If True, recursively delete all subdirectories and files
         
         Raises:
-            TypeError: If directory_path is not a string
-            ValueError: If directory_path is empty
+            TypeError: If path is not a string
+            ValueError: If path is empty
             Exception: If any error occurs during deletion
         """
         
-        if not isinstance(directory_path, str):
-            raise TypeError("directory_path must be a non-empty string")
+        if not isinstance(path, str):
+            raise TypeError("path must be a non-empty string")
             
-        if not directory_path:
-            raise ValueError("directory_path cannot be empty")
+        if not path:
+            raise ValueError("path cannot be empty")
         
         try:
-            logger.info(f"Deleting directory: {directory_path}, recursive={recursive}")
-            
-            # Check if the path exists before attempting deletion
-            hadoop_conf = self.spark._jsc.hadoopConfiguration()
-            path = self.spark._jvm.org.apache.hadoop.fs.Path(directory_path)
-            fs = path.getFileSystem(hadoop_conf)
-            
-            if not fs.exists(path):
-                logger.warning(f"Path does not exist, nothing to delete: {directory_path}")
+            logger.info(f"Deleting path: {path}, recursive={recursive}")
+
+            if not self.file_exists(path):
+                logger.warning(f"Path does not exist, nothing to delete: {path}")
                 return
             
-            # Delete the directory
-            # For Azure Storage, this approach works with abfss:// paths
-            if recursive:
-                fs.delete(path, True)  # True for recursive
-                logger.info(f"Successfully deleted directory and all contents: {directory_path}")
-            else:
-                # For non-recursive, ensure the directory is empty
-                if fs.listStatus(path).length > 0 and not recursive:
-                    raise ValueError(f"Directory is not empty and recursive=False: {directory_path}")
-                
-                fs.delete(path, False)  # False for non-recursive
-                logger.info(f"Successfully deleted directory: {directory_path}")
+            # Delete the path
+            self.dbutils.fs.rm(path, recurse=True)
                 
         except Exception as e:
-            logger.error(f"Failed to delete directory {directory_path}: {str(e)}")
-            raise Exception(f"Failed to delete directory: {str(e)}") from e
+            logger.error(f"Failed to delete {path}: {str(e)}")
+            raise Exception(f"Failed to delete: {str(e)}") from e
