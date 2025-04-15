@@ -124,9 +124,37 @@ class DataCatalogue:
             # Write data using the specified or defaulted mode
             self.storage.write(df, target_path, mode=WriteMode.OVERWRITE.value)
 
-            return self.gateway.import_dataset(
-                dataset_name, dataset_description, schema_id, tags or {}, folder_id
-            )
+            try: 
+                # Register the dataset with the Gateway API
+                return self.gateway.import_dataset(
+                    dataset_name, dataset_description, schema_id, tags or {}, folder_id
+                )
+            except Exception as api_error:
+                # If Gateway API call fails, rollback the storage operation
+                self._rollback_storage(target_path)
+
+                # Raise the original API error with additional context
+                error_msg = f"Gateway API call failed and storage was rolled back: {str(api_error)}"
+                raise type(api_error)(error_msg) from api_error
 
         except Exception as e:
             return {"error": str(e), "error_type": type(e).__name__}
+        
+
+    def _rollback_storage(self, target_path: str) -> None:
+        """
+        Delete data from storage to rollback changes when an operation fails.
+        
+        Args:
+            target_path: Path to the data in storage that should be deleted
+        """
+        try:
+            # Recursively delete the directory
+            self.storage.delete_directory(target_path, recursive=True)
+
+            # Log the successful rollback
+            logger.info(f"Successfully rolled back data write operation by deleting: {target_path}")
+        except Exception as rollback_error:
+            # Log if the rollback itself fails
+            logger.error(f"Failed to rollback storage operation at {target_path}: {str(rollback_error)}")
+
