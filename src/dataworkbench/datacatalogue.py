@@ -39,9 +39,21 @@ class DataCatalogue:
         self.gateway: Gateway = Gateway()
         self.storage_base_url: str = get_secret("StorageBaseUrl")
 
-    def __build_storage_url(self, folder_id: uuid.UUID) -> str:
+    def __build_storage_table_root_url(self, folder_id: uuid.UUID) -> str:
         """
-        Build the ABFSS URL for the target storage location.
+        Build the ABFSS URL for the root location of the table
+        """
+        if not isinstance(folder_id, uuid.UUID):
+            raise TypeError("folder_id must be uuid")
+
+        if not folder_id:
+            raise ValueError("folder_id cannot be empty")
+
+        return f"{self.storage_base_url}/{folder_id}"
+
+    def __build_storage_table_processed_url(self, folder_id: uuid.UUID) -> str:
+        """
+        Build the ABFSS URL for the processed table storage location.
 
         Args:
             folder_id: Unique identifier for the storage folder
@@ -51,15 +63,10 @@ class DataCatalogue:
 
         Example:
             >>> catalogue = DataCatalogue()
-            >>> catalogue._build_storage_url("abc123")
+            >>> catalogue.__build_storage_table_processed_url("abc123")
         """
-        if not isinstance(folder_id, uuid.UUID):
-            raise TypeError("folder_id must be uuid")
-
-        if not folder_id:
-            raise ValueError("folder_id cannot be empty")
-
-        return f"{self.storage_base_url}/{folder_id}/Processed"
+        table_root_url = self.__build_storage_table_root_url(folder_id)
+        return f"{table_root_url}/Processed"
 
     def save(
         self,
@@ -118,43 +125,45 @@ class DataCatalogue:
         # Generate folder_id
         folder_id = uuid.uuid4()
 
-        target_path = self.__build_storage_url(folder_id)
+        target_path = self.__build_storage_table_processed_url(folder_id)
 
         try:
             # Write data using the specified or defaulted mode
             self.storage.write(df, target_path, mode=WriteMode.OVERWRITE.value)
 
-            try: 
+            try:
                 # Register the dataset with the Gateway API
                 return self.gateway.import_dataset(
                     dataset_name, dataset_description, schema_id, tags or {}, folder_id
                 )
-            except Exception as api_error:
-                # If Gateway API call fails, rollback the storage operation
-                self._rollback_storage(target_path)
+            except Exception as e:
+                self._rollback_write(folder_id)
 
                 # Raise the original API error with additional context
-                error_msg = f"Gateway API call failed and storage was rolled back: {str(api_error)}"
-                raise type(api_error)(error_msg) from api_error
+                error_msg = (
+                    f"Gateway API call failed and storage was rolled back: {str(e)}"
+                )
+                raise type(e)(error_msg) from e
 
         except Exception as e:
             return {"error": str(e), "error_type": type(e).__name__}
-        
 
-    def _rollback_storage(self, target_path: str) -> None:
+    def _rollback_write(self, folder_id: uuid.UUID) -> None:
         """
-        Delete data from storage to rollback changes when an operation fails.
-        
+        Delete table from storage to rollback changes when an operation fails.
+
         Args:
             target_path: Path to the data in storage that should be deleted
         """
+        target_path = self.__build_storage_table_root_url(folder_id)
+        logger.info("Rolling back data write operation to storage")
         try:
-            # Recursively delete the directory
             self.storage.delete(target_path, recursive=True)
-
-            # Log the successful rollback
-            logger.info(f"Successfully rolled back data write operation by deleting: {target_path}")
         except Exception as rollback_error:
-            # Log if the rollback itself fails
-            logger.error(f"Failed to rollback storage operation at {target_path}: {str(rollback_error)}")
+            logger.error(
+                f"Failed to rollback storage operation at {target_path}: {str(rollback_error)}"
+            )
 
+        logger.info(
+            f"Successfully rolled back data write operation by deleting: {target_path}"
+        )

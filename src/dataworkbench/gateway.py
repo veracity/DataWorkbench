@@ -138,4 +138,4 @@ class Gateway:
             return self.__send_request(url, payload)
         except requests.exceptions.RequestException as e:
             logger.error(f"Error creating data catalog entry: {e}")
-            return {"error": f"Failed to create data catalog entry: {str(e)}"}
+            raise
