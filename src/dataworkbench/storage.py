@@ -1,9 +1,11 @@
-from typing import Any, Literal
+from typing import Literal
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.utils import AnalysisException
 from abc import ABC, abstractmethod
+from dataworkbench.utils import get_dbutils, PrimitiveType, is_databricks
 
 from dataworkbench.log import setup_logger
+
 
 # Configure logging
 logger = setup_logger(__name__)
@@ -24,7 +26,7 @@ class Storage(ABC):
         df: DataFrame,
         target_path: str,
         mode: Literal["overwrite", "append", "error", "ignore"] = "overwrite",
-        **options: dict[str, Any],
+        **options: PrimitiveType | None,
     ) -> None:
         """
         Write a DataFrame to storage.
@@ -60,7 +62,7 @@ class Storage(ABC):
         pass
 
     @abstractmethod
-    def read(self, source_path: str, **options: dict[str, Any]) -> DataFrame:
+    def read(self, source_path: str, **options: PrimitiveType | None) -> DataFrame:
         """
         Read data from storage into a DataFrame.
 
@@ -98,6 +100,7 @@ class DeltaStorage(Storage):
             raise TypeError("spark_session must be a SparkSession or None")
 
         self._spark = spark_session
+        self._dbutils = get_dbutils(self._spark)
 
     @property
     def spark(self) -> SparkSession:
@@ -127,7 +130,8 @@ class DeltaStorage(Storage):
         df: DataFrame,
         target_path: str,
         mode: Literal["overwrite", "append", "error", "ignore"] = "overwrite",
-        **options: dict[str, Any],
+        partition_by: str | list[str] | None = None,
+        **options: PrimitiveType | None,
     ) -> None:
         """
         Write a DataFrame to storage in Delta format.
@@ -172,8 +176,11 @@ class DeltaStorage(Storage):
             writer = df.write.format("delta").mode(mode)
 
             # Apply options if provided
-            for key, value in options.items():
-                writer = writer.option(key, value)
+            if options:
+                writer = writer.options(**options)
+
+            if partition_by:
+                writer = writer.partitionBy(partition_by)
 
             # Save the data
             writer.save(target_path)
@@ -189,7 +196,7 @@ class DeltaStorage(Storage):
         df: DataFrame,
         target_path: str,
         partition_by: str | list[str] | None = None,
-        **options: dict[str, Any],
+        **options: PrimitiveType | None,
     ) -> None:
         """
         Append a DataFrame to existing data in Delta format.
@@ -213,7 +220,13 @@ class DeltaStorage(Storage):
             >>> new_records = spark.createDataFrame([("Charlie", 35)], ["name", "age"])
             >>> storage.append(new_records, "abfss://container@account.dfs.core.windows.net/path/to/data")
         """
-        self.write(df, target_path, mode="append", partition_by=partition_by, **options)
+        self.write(
+            df=df,
+            target_path=target_path,
+            mode="append",
+            partition_by=partition_by,
+            **options,
+        )
 
     def check_path_exists(self, path: str) -> bool:
         """
@@ -247,7 +260,7 @@ class DeltaStorage(Storage):
             logger.warning(f"Error checking path existence: {e}")
             return False
 
-    def read(self, source_path: str, **options: dict[str, Any]) -> DataFrame:
+    def read(self, source_path: str, **options: PrimitiveType | None) -> DataFrame:
         """
         Read a Delta table from storage into a DataFrame.
 
@@ -274,8 +287,8 @@ class DeltaStorage(Storage):
             reader = self.spark.read.format("delta")
 
             # Apply options if provided
-            for key, value in options.items():
-                reader = reader.option(key, value)
+            if options:
+                reader = reader.options(**options)
 
             # Load the data
             return reader.load(source_path)
@@ -284,3 +297,52 @@ class DeltaStorage(Storage):
             error_msg = f"Failed to read data from {source_path}: {e}"
             logger.error(error_msg)
             raise RuntimeError(error_msg) from e
+
+    def file_exists(self, path: str):
+        if is_databricks():
+            try:
+                self._dbutils.fs.ls(path)
+                return True
+            except Exception as e:
+                if "java.io.FileNotFoundException" in str(e):
+                    return False
+                else:
+                    raise
+        else:
+            logger.info("This method is not implemented outside databricks")
+
+    def delete(self, path: str, recursive: bool = True) -> None:
+        """
+        Delete a directory from Azure Storage using Spark.
+
+        Args:
+            path: The path to the file / directory in Azure Storage to delete
+            recursive: If True, recursively delete all subdirectories and files
+
+        Raises:
+            TypeError: If path is not a string
+            ValueError: If path is empty
+            Exception: If any error occurs during deletion
+        """
+        if not is_databricks():
+            raise RuntimeError("Delete does not work outside databricks")
+
+        if not isinstance(path, str):
+            raise TypeError("path must be a non-empty string")
+
+        if not path:
+            raise ValueError("path cannot be empty")
+
+        try:
+            logger.info(f"Deleting path: {path}, recursive={recursive}")
+
+            if not self.file_exists(path):
+                logger.warning(f"Path does not exist, nothing to delete: {path}")
+                return
+
+            # Delete the path
+            self._dbutils.fs.rm(path, recurse=True)
+
+        except Exception as e:
+            logger.error(f"Failed to delete {path}: {str(e)}")
+            raise Exception(f"Failed to delete: {str(e)}") from e
