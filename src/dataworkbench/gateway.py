@@ -154,6 +154,6 @@ class Gateway:
             )
             logger.error(f"Error creating data catalog entry: {e}")
             return {
-                "Error ID": trace_id,
+                "error ID": trace_id,
                 "error": "Failed to create data catalog entry.",
             }
