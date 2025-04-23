@@ -1,6 +1,14 @@
 import os
 from pyspark.sql import SparkSession
 
+from dataworkbench.log import setup_logger
+
+# Configure logging
+logger = setup_logger(__name__)
+
+
+PrimitiveType = str | int | float | bool
+
 
 def get_spark() -> SparkSession:
     """
@@ -23,24 +31,35 @@ def is_databricks():
     return os.getenv("DATABRICKS_RUNTIME_VERSION") is not None
 
 
+def get_dbutils(spark: SparkSession | None = None):
+    """
+    Get dbutils module
+    """
+    if is_databricks():
+        try:
+            from pyspark.dbutils import DBUtils  # type: ignore
+        except ImportError:
+            raise RuntimeError(
+                "dbutils module not found. Ensure this is running on Databricks."
+            )
+        try:
+            return DBUtils(spark)
+        except Exception as e:
+            logger.error(f"Failed to create dbutils: {e}")
+            raise RuntimeError("No dbutils available") from e
+    else:
+        return None
+
+
 def get_secret(key: str, scope: str = "dwsecrets") -> str:
     """
     Retrieve a secret from dbutils if running on Databricks, otherwise fallback to env variables.
     """
 
-    secret = None  # Default value
+    dbutils = get_dbutils()
 
-    if is_databricks():
-        try:
-            from pyspark.dbutils import DBUtils  # type: ignore
-
-            spark = get_spark()
-            dbutils = DBUtils(spark)
-            secret = dbutils.secrets.get(scope, key)
-        except ImportError:
-            raise RuntimeError(
-                "dbutils module not found. Ensure this is running on Databricks."
-            )
+    if dbutils:
+        secret = dbutils.secrets.get(scope, key)
     else:
         secret = os.getenv(key)
 
