@@ -49,5 +49,5 @@ def test_import_dataset_failure(mock_gateway, mock_post):
 
     result = mock_gateway.import_dataset("dataset_name", "dataset_description", "schema_id", {"tag": "value"}, "folder_id")
 
-    assert result == {"error": "Failed to create data catalog entry.", "correlation_id": response_body["traceId"]}
+    assert result == {"error": "Failed to create data catalog entry.", "correlation-id": response_body["traceId"]}
     mock_post.assert_called_once()
