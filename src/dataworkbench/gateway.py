@@ -1,6 +1,7 @@
 from typing import Any
 import requests
 from uuid import UUID
+import json
 
 from dataworkbench.utils import get_secret
 from dataworkbench.auth import TokenManager
@@ -8,6 +9,11 @@ from dataworkbench.log import setup_logger
 
 # Configure logging
 logger = setup_logger(__name__)
+
+
+def _get_trace_id_from_response(response: requests.Response) -> str | None:
+    response_dict = json.loads(response.text)
+    return response_dict.get("traceId")
 
 
 class Gateway:
@@ -135,7 +141,19 @@ class Gateway:
         logger.info(f"Sending request to import dataset: {dataset_name}")
 
         try:
-            return self.__send_request(url, payload)
+            response = self.__send_request(url, payload)
+            logger.info(
+                f"Successfully imported dataset {dataset_name} to Data Workbench"
+            )
+            return response
         except requests.exceptions.RequestException as e:
+            trace_id = (
+                _get_trace_id_from_response(e.response)
+                if e.response is not None
+                else None
+            )
             logger.error(f"Error creating data catalog entry: {e}")
-            raise
+            return {
+                "error": "Failed to create data catalog entry.",
+                "correlation-id": trace_id,
+            }
