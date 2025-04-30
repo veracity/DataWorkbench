@@ -46,9 +46,6 @@ class DataCatalogue:
         if not isinstance(folder_id, uuid.UUID):
             raise TypeError("folder_id must be uuid")
 
-        if not folder_id:
-            raise ValueError("folder_id cannot be empty")
-
         return f"{self.storage_base_url}/{folder_id}"
 
     def __build_storage_table_processed_url(self, folder_id: uuid.UUID) -> str:
@@ -110,7 +107,7 @@ class DataCatalogue:
             ... )
         """
         # Validate input parameters
-        if not hasattr(df, "write"):
+        if not isinstance(df, DataFrame):
             raise TypeError("df must be a DataFrame")
 
         if not isinstance(dataset_name, str) or not dataset_name:
