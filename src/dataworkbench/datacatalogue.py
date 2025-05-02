@@ -160,6 +160,7 @@ class DataCatalogue:
             logger.error(
                 f"Failed to rollback storage operation at {target_path}: {str(rollback_error)}"
             )
+            raise
 
         logger.info(
             f"Successfully rolled back data write operation by deleting: {target_path}"
