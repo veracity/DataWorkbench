@@ -52,5 +52,5 @@ def test_import_dataset_failure(mock_gateway, mock_post):
     with pytest.raises(RequestException) as e:
         mock_gateway.import_dataset("dataset_name", "dataset_description", "schema_id", {"tag": "value"}, "folder_id")
 
-    assert e.value.args[0] == f"Failed to create data catalog entry. correlation-id: {response_body["traceId"]}"
+    assert e.value.args[0] == f"Failed to create data catalog entry. correlation-id: {response_body['traceId']}"
     mock_post.assert_called_once()
