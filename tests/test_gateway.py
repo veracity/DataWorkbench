@@ -2,6 +2,7 @@ import pytest
 import requests
 from unittest.mock import patch, MagicMock
 from dataworkbench.gateway import Gateway
+from requests.exceptions import RequestException
 import json
 
 @pytest.fixture
@@ -32,6 +33,7 @@ def test_import_dataset_success(mock_gateway, mock_post):
     assert result == {"status": "success"}
     mock_post.assert_called_once()
 
+
 def test_import_dataset_failure(mock_gateway, mock_post):
     """Test dataset import failure."""
 
@@ -47,7 +49,8 @@ def test_import_dataset_failure(mock_gateway, mock_post):
     mock_response.raise_for_status.side_effect = http_error
     mock_post.return_value = mock_response
 
-    result = mock_gateway.import_dataset("dataset_name", "dataset_description", "schema_id", {"tag": "value"}, "folder_id")
+    with pytest.raises(RequestException) as e:
+        mock_gateway.import_dataset("dataset_name", "dataset_description", "schema_id", {"tag": "value"}, "folder_id")
 
-    assert result == {"error": "Failed to create data catalog entry.", "correlation-id": response_body["traceId"]}
+    assert e.value.args[0] == f"Failed to create data catalog entry. correlation-id: {response_body["traceId"]}"
     mock_post.assert_called_once()

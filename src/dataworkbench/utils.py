@@ -1,5 +1,5 @@
 import os
-from pyspark.sql import SparkSession
+from pyspark.sql import SparkSession, DataFrame
 
 from dataworkbench.log import setup_logger
 
@@ -68,6 +68,14 @@ def get_secret(key: str, scope: str = "dwsecrets") -> str:
         raise ValueError(f"Secret '{key}' is missing or empty.")
 
     return secret
+
+
+if is_databricks():
+    from pyspark.sql.connect.dataframe import DataFrame as DatabricksDataFrame
+
+    SparkDataFrame = DataFrame | DatabricksDataFrame
+else:
+    SparkDataFrame = DataFrame
 
 
 # Example usage

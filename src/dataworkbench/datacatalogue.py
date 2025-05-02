@@ -4,7 +4,7 @@ from typing import Any
 
 from pyspark.sql import DataFrame
 
-from dataworkbench.utils import get_secret
+from dataworkbench.utils import get_secret, SparkDataFrame
 from dataworkbench.storage import DeltaStorage
 from dataworkbench.gateway import Gateway
 
@@ -107,7 +107,7 @@ class DataCatalogue:
             ... )
         """
         # Validate input parameters
-        if not isinstance(df, DataFrame):
+        if not isinstance(df, SparkDataFrame):
             raise TypeError("df must be a DataFrame")
 
         if not isinstance(dataset_name, str) or not dataset_name:
