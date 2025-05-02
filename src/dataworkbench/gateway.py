@@ -152,8 +152,9 @@ class Gateway:
                 if e.response is not None
                 else None
             )
-            logger.error(f"Error creating data catalog entry: {e}")
-            return {
-                "error": "Failed to create data catalog entry.",
-                "correlation-id": trace_id,
-            }
+            error_msg = (
+                f"Failed to create data catalog entry. correlation-id: {trace_id}"
+            )
+
+            logger.error(error_msg)
+            raise type(e)(error_msg) from e
