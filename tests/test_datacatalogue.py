@@ -170,3 +170,96 @@ def test_rollback_write_delete_fails_logs_error(storage_handler):
         storage_handler._rollback_write(folder_id)
 
     storage_handler.storage.delete.assert_called_once_with(target_path, recursive=True)
+
+
+VIEW_NAME = "receiver_cat.default.shared_view"
+SOURCE_DATASET_ID = "11111111-1111-1111-1111-111111111111"
+VIEW_ROWS = [{"table_type": "VIEW"}]
+TAG_ROWS = [{"tag_value": SOURCE_DATASET_ID}]
+
+
+def base_rows(table_type):
+    return [{
+        "table_catalog": "source_cat",
+        "table_schema": "default",
+        "table_name": "sales",
+        "table_type": table_type,
+    }]
+
+
+def spark_returns(*result_sets):
+    """One mocked spark.sql(...).collect() result per successive call."""
+    return [MagicMock(collect=MagicMock(return_value=rows)) for rows in result_sets]
+
+
+@pytest.fixture
+def resolver():
+    """DataCatalogue with a mocked Spark session for base table resolution."""
+    with patch("dataworkbench.auth.TokenManager.get_token", return_value="mock_token"):
+        catalogue = DataCatalogue()
+    catalogue.storage = MagicMock()
+    return catalogue
+
+
+@pytest.mark.parametrize("view_name", ["", 123, None])
+def test_resolve_base_table_invalid_view_name_type(resolver, view_name):
+    with pytest.raises(TypeError):
+        resolver.ResolveBaseDatabricksFullTableName(view_name)
+
+
+@pytest.mark.parametrize("view_name", ["shared_view", "default.shared_view", "a.b.c.d", "cat..view"])
+def test_resolve_base_table_not_fully_qualified(resolver, view_name):
+    with pytest.raises(ValueError, match="View is not valid"):
+        resolver.ResolveBaseDatabricksFullTableName(view_name)
+
+
+@pytest.mark.parametrize("view_rows", [[], [{"table_type": "MATERIALIZED_VIEW"}], [{"table_type": "EXTERNAL"}]])
+def test_resolve_base_table_input_must_be_a_plain_view(resolver, view_rows):
+    resolver.storage.spark.sql.side_effect = spark_returns(view_rows)
+
+    with pytest.raises(ValueError, match="View is not valid"):
+        resolver.ResolveBaseDatabricksFullTableName(VIEW_NAME)
+
+
+def test_resolve_base_table_without_source_dataset_id_tag(resolver):
+    resolver.storage.spark.sql.side_effect = spark_returns(VIEW_ROWS, [])
+
+    with pytest.raises(ValueError, match="doesn't have share with Write access on it"):
+        resolver.ResolveBaseDatabricksFullTableName(VIEW_NAME)
+
+
+def test_resolve_base_table_no_base_table_found(resolver):
+    resolver.storage.spark.sql.side_effect = spark_returns(VIEW_ROWS, TAG_ROWS, [])
+
+    with pytest.raises(ValueError, match="no base table found for this view"):
+        resolver.ResolveBaseDatabricksFullTableName(VIEW_NAME)
+
+
+@pytest.mark.parametrize("table_type", ["VIEW", "MATERIALIZED_VIEW", "MANAGED", "STREAMING_TABLE"])
+def test_resolve_base_table_base_is_not_external(resolver, table_type):
+    resolver.storage.spark.sql.side_effect = spark_returns(VIEW_ROWS, TAG_ROWS, base_rows(table_type))
+
+    with pytest.raises(ValueError, match="the base for this view is not a table"):
+        resolver.ResolveBaseDatabricksFullTableName(VIEW_NAME)
+
+
+@pytest.mark.parametrize("view_name", [VIEW_NAME, " `receiver_cat`.`default`.`shared_view` "])
+def test_resolve_base_table_returns_external_table_full_name(resolver, view_name):
+    resolver.storage.spark.sql.side_effect = spark_returns(VIEW_ROWS, TAG_ROWS, base_rows("EXTERNAL"))
+
+    result = resolver.ResolveBaseDatabricksFullTableName(view_name)
+
+    assert result == "source_cat.default.sales"
+
+
+def test_resolve_base_table_never_interpolates_the_view_name(resolver):
+    resolver.storage.spark.sql.side_effect = spark_returns(VIEW_ROWS, TAG_ROWS, base_rows("EXTERNAL"))
+
+    resolver.ResolveBaseDatabricksFullTableName(VIEW_NAME)
+
+    for call in resolver.storage.spark.sql.call_args_list:
+        query = call.args[0]
+        assert "receiver_cat" not in query
+        assert SOURCE_DATASET_ID not in query
+        assert call.kwargs["args"]
+

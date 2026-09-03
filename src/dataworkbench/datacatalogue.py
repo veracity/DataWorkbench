@@ -145,6 +145,103 @@ class DataCatalogue:
         except Exception as e:
             return {"error": str(e), "error_type": type(e).__name__}
 
+    def ResolveBaseDatabricksFullTableName(self, view_name: str) -> str:
+        """
+        Resolve the base table a write-shared view ultimately reads from.
+
+        A view shared with write access carries a ``source_dataset_id`` tag holding the id
+        of the root dataset. This method reads that tag and resolves the Unity Catalog
+        object tagged ``dataset_id`` with the same value, which must be an external table.
+
+        Args:
+            view_name: Fully qualified view name, ``catalog.schema.view``. Must be a
+                plain view; a materialized view is rejected.
+
+        Returns:
+            str: Fully qualified name of the base external table, ``catalog.schema.table``
+
+        Raises:
+            TypeError: If view_name is not a non-empty string
+            ValueError: If the view is not valid, does not carry a ``source_dataset_id``
+                        tag, or its base object is missing or is not an external table
+
+        Example:
+            >>> catalogue = DataCatalogue()
+            >>> catalogue.ResolveBaseDatabricksFullTableName("receiver_cat.default.shared_view")
+            'source_cat.default.sales_2024'
+        """
+        if not isinstance(view_name, str) or not view_name:
+            raise TypeError("view_name must be a non-empty string")
+
+        parts = [part.strip().strip("`") for part in view_name.split(".")]
+        if len(parts) != 3 or not all(parts):
+            raise ValueError("View is not valid")
+
+        catalog, schema, view = parts
+        spark = self.storage.spark
+        view_args = {"catalog": catalog, "schema": schema, "view": view}
+
+        view_rows = spark.sql(
+            """
+            SELECT table_type FROM system.information_schema.tables
+            WHERE table_catalog = :catalog
+              AND table_schema = :schema
+              AND table_name = :view
+            """,
+            args=view_args,
+        ).collect()
+
+        if not view_rows or view_rows[0]["table_type"] != "VIEW":
+            raise ValueError("View is not valid")
+
+        tag_rows = spark.sql(
+            """
+            SELECT tag_value FROM system.information_schema.table_tags
+            WHERE catalog_name = :catalog
+              AND schema_name = :schema
+              AND table_name = :view
+              AND tag_name = 'source_dataset_id'
+            """,
+            args=view_args,
+        ).collect()
+
+        source_dataset_id = tag_rows[0]["tag_value"] if tag_rows else None
+        if not source_dataset_id:
+            raise ValueError("this view doesn't have share with Write access on it")
+
+        logger.info(
+            f"Resolving base table for view {view_name} via source_dataset_id {source_dataset_id}"
+        )
+
+        # The base table lives in the source workspace's catalog, so this lookup is
+        # deliberately not scoped to the catalog the view was found in.
+        base_rows = spark.sql(
+            """
+            SELECT t.table_catalog, t.table_schema, t.table_name, t.table_type
+            FROM system.information_schema.table_tags tg
+            JOIN system.information_schema.tables t
+              ON t.table_catalog = tg.catalog_name
+             AND t.table_schema = tg.schema_name
+             AND t.table_name = tg.table_name
+            WHERE tg.tag_name = 'dataset_id'
+              AND tg.tag_value = :dataset_id
+            """,
+            args={"dataset_id": source_dataset_id},
+        ).collect()
+
+        if not base_rows:
+            raise ValueError("no base table found for this view")
+
+        for row in base_rows:
+            if row["table_type"] == "EXTERNAL":
+                return (
+                    f"{row['table_catalog']}.{row['table_schema']}.{row['table_name']}"
+                )
+
+        raise ValueError(
+            "the base for this view is not a table. Invalid viewName given as input"
+        )
+
     def _rollback_write(self, folder_id: uuid.UUID) -> None:
         """
         Delete table from storage to rollback changes when an operation fails.
