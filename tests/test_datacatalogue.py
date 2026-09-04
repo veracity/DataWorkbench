@@ -204,13 +204,13 @@ def resolver():
 @pytest.mark.parametrize("view_name", ["", 123, None])
 def test_resolve_base_table_invalid_view_name_type(resolver, view_name):
     with pytest.raises(TypeError):
-        resolver.ResolveBaseDatabricksFullTableName(view_name)
+        resolver.resolve_base_databricks_full_table_name(view_name)
 
 
 @pytest.mark.parametrize("view_name", ["shared_view", "default.shared_view", "a.b.c.d", "cat..view"])
 def test_resolve_base_table_not_fully_qualified(resolver, view_name):
     with pytest.raises(ValueError, match="View is not valid"):
-        resolver.ResolveBaseDatabricksFullTableName(view_name)
+        resolver.resolve_base_databricks_full_table_name(view_name)
 
 
 @pytest.mark.parametrize("view_rows", [[], [{"table_type": "MATERIALIZED_VIEW"}], [{"table_type": "EXTERNAL"}]])
@@ -218,48 +218,74 @@ def test_resolve_base_table_input_must_be_a_plain_view(resolver, view_rows):
     resolver.storage.spark.sql.side_effect = spark_returns(view_rows)
 
     with pytest.raises(ValueError, match="View is not valid"):
-        resolver.ResolveBaseDatabricksFullTableName(VIEW_NAME)
+        resolver.resolve_base_databricks_full_table_name(VIEW_NAME)
 
 
 def test_resolve_base_table_without_source_dataset_id_tag(resolver):
     resolver.storage.spark.sql.side_effect = spark_returns(VIEW_ROWS, [])
 
     with pytest.raises(ValueError, match="doesn't have share with Write access on it"):
-        resolver.ResolveBaseDatabricksFullTableName(VIEW_NAME)
+        resolver.resolve_base_databricks_full_table_name(VIEW_NAME)
 
 
 def test_resolve_base_table_no_base_table_found(resolver):
     resolver.storage.spark.sql.side_effect = spark_returns(VIEW_ROWS, TAG_ROWS, [])
 
     with pytest.raises(ValueError, match="no base table found for this view"):
-        resolver.ResolveBaseDatabricksFullTableName(VIEW_NAME)
+        resolver.resolve_base_databricks_full_table_name(VIEW_NAME)
 
 
 @pytest.mark.parametrize("table_type", ["VIEW", "MATERIALIZED_VIEW", "MANAGED", "STREAMING_TABLE"])
 def test_resolve_base_table_base_is_not_external(resolver, table_type):
     resolver.storage.spark.sql.side_effect = spark_returns(VIEW_ROWS, TAG_ROWS, base_rows(table_type))
 
-    with pytest.raises(ValueError, match="the base for this view is not a table"):
-        resolver.ResolveBaseDatabricksFullTableName(VIEW_NAME)
+    with pytest.raises(ValueError, match="is not an external table"):
+        resolver.resolve_base_databricks_full_table_name(VIEW_NAME)
 
 
 @pytest.mark.parametrize("view_name", [VIEW_NAME, " `receiver_cat`.`default`.`shared_view` "])
 def test_resolve_base_table_returns_external_table_full_name(resolver, view_name):
     resolver.storage.spark.sql.side_effect = spark_returns(VIEW_ROWS, TAG_ROWS, base_rows("EXTERNAL"))
 
-    result = resolver.ResolveBaseDatabricksFullTableName(view_name)
+    result = resolver.resolve_base_databricks_full_table_name(view_name)
 
-    assert result == "source_cat.default.sales"
+    assert result == "`source_cat`.`default`.`sales`"
+
+
+def test_resolve_base_table_escapes_backticks_in_identifiers(resolver):
+    quirky = [{
+        "table_catalog": "source_cat",
+        "table_schema": "default",
+        "table_name": "we`ird",
+        "table_type": "EXTERNAL",
+    }]
+    resolver.storage.spark.sql.side_effect = spark_returns(VIEW_ROWS, TAG_ROWS, quirky)
+
+    result = resolver.resolve_base_databricks_full_table_name(VIEW_NAME)
+
+    assert result == "`source_cat`.`default`.`we``ird`"
 
 
 def test_resolve_base_table_never_interpolates_the_view_name(resolver):
     resolver.storage.spark.sql.side_effect = spark_returns(VIEW_ROWS, TAG_ROWS, base_rows("EXTERNAL"))
 
-    resolver.ResolveBaseDatabricksFullTableName(VIEW_NAME)
+    resolver.resolve_base_databricks_full_table_name(VIEW_NAME)
 
     for call in resolver.storage.spark.sql.call_args_list:
         query = call.args[0]
         assert "receiver_cat" not in query
         assert SOURCE_DATASET_ID not in query
         assert call.kwargs["args"]
+
+
+def test_resolve_base_table_passes_identifiers_to_args_unescaped(resolver):
+    # Spark binds args as literals, so a quote must reach it verbatim -- escaping it
+    # the way an interpolated WHERE clause would need is what breaks the match.
+    resolver.storage.spark.sql.side_effect = spark_returns(VIEW_ROWS, TAG_ROWS, base_rows("EXTERNAL"))
+
+    resolver.resolve_base_databricks_full_table_name("receiver_cat.default.o'brien_view")
+
+    args = resolver.storage.spark.sql.call_args_list[0].kwargs["args"]
+    assert args["view"] == "o'brien_view"
+    assert "\\'" not in args["view"]
 

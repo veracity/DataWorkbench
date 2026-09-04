@@ -145,7 +145,7 @@ class DataCatalogue:
         except Exception as e:
             return {"error": str(e), "error_type": type(e).__name__}
 
-    def ResolveBaseDatabricksFullTableName(self, view_name: str) -> str:
+    def resolve_base_databricks_full_table_name(self, view_name: str) -> str:
         """
         Resolve the base table a write-shared view ultimately reads from.
 
@@ -158,7 +158,8 @@ class DataCatalogue:
                 plain view; a materialized view is rejected.
 
         Returns:
-            str: Fully qualified name of the base external table, ``catalog.schema.table``
+            str: Fully qualified name of the base external table, with each identifier
+                backtick quoted so the result can be used directly in Spark SQL
 
         Raises:
             TypeError: If view_name is not a non-empty string
@@ -167,8 +168,10 @@ class DataCatalogue:
 
         Example:
             >>> catalogue = DataCatalogue()
-            >>> catalogue.ResolveBaseDatabricksFullTableName("receiver_cat.default.shared_view")
-            'source_cat.default.sales_2024'
+            >>> catalogue.resolve_base_databricks_full_table_name(
+            ...     "receiver_cat.default.shared_view"
+            ... )
+            '`source_cat`.`default`.`sales_2024`'
         """
         if not isinstance(view_name, str) or not view_name:
             raise TypeError("view_name must be a non-empty string")
@@ -210,7 +213,9 @@ class DataCatalogue:
             raise ValueError("this view doesn't have share with Write access on it")
 
         logger.info(
-            f"Resolving base table for view {view_name} via source_dataset_id {source_dataset_id}"
+            "Resolving base table for view %s via source_dataset_id %s",
+            view_name,
+            source_dataset_id,
         )
 
         # The base table lives in the source workspace's catalog, so this lookup is
@@ -234,12 +239,12 @@ class DataCatalogue:
 
         for row in base_rows:
             if row["table_type"] == "EXTERNAL":
-                return (
-                    f"{row['table_catalog']}.{row['table_schema']}.{row['table_name']}"
-                )
+                parts = (row["table_catalog"], row["table_schema"], row["table_name"])
+                # Unity Catalog escapes a backtick inside an identifier by doubling it.
+                return ".".join(f"`{part.replace('`', '``')}`" for part in parts)
 
         raise ValueError(
-            "the base for this view is not a table. Invalid viewName given as input"
+            "the base for this view is not an external table. Invalid viewName given as input"
         )
 
     def _rollback_write(self, folder_id: uuid.UUID) -> None:
