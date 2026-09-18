@@ -11,9 +11,50 @@ from dataworkbench.log import setup_logger
 logger = setup_logger(__name__)
 
 
+def _parse_problem_details(response: requests.Response) -> dict[str, Any] | None:
+    """Parse a ProblemDetails body, returning None when the body is not a JSON object."""
+    try:
+        body = json.loads(response.text)
+    except (ValueError, TypeError):
+        return None
+    return body if isinstance(body, dict) else None
+
+
 def _get_trace_id_from_response(response: requests.Response) -> str | None:
-    response_dict = json.loads(response.text)
-    return response_dict.get("traceId")
+    problem = _parse_problem_details(response)
+    return problem.get("traceId") if problem else None
+
+
+def _format_validation_errors(errors: dict[str, Any]) -> str:
+    return "; ".join(
+        f"{field}: {', '.join(str(m) for m in messages)}"
+        if isinstance(messages, list)
+        else f"{field}: {messages}"
+        for field, messages in errors.items()
+    )
+
+
+def _describe_failure(response: requests.Response | None) -> str:
+    """Summarise why the API rejected the request, for the caller to act on."""
+    if response is None:
+        return "no response received"
+
+    problem = _parse_problem_details(response)
+    if problem is None:
+        text = (response.text or "").strip()
+        return f"HTTP {response.status_code}: {text[:200]}" if text else f"HTTP {response.status_code}"
+
+    parts: list[str] = []
+
+    reason = problem.get("detail") or problem.get("title")
+    if reason:
+        parts.append(str(reason))
+
+    errors = problem.get("errors")
+    if isinstance(errors, dict) and errors:
+        parts.append(_format_validation_errors(errors))
+
+    return "\n".join(parts) if parts else f"HTTP {response.status_code}"
 
 
 class Gateway:
@@ -153,8 +194,10 @@ class Gateway:
                 else None
             )
             error_msg = (
-                f"Failed to create data catalog entry. correlation-id: {trace_id}"
+                f"Failed to create data catalog entry: {_describe_failure(e.response)}"
             )
+            if trace_id:
+                error_msg = f"{error_msg} (correlation-id: {trace_id})"
 
             logger.error(error_msg)
             raise type(e)(error_msg) from e
