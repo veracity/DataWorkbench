@@ -11,9 +11,19 @@ from dataworkbench.log import setup_logger
 logger = setup_logger(__name__)
 
 
-def _get_trace_id_from_response(response: requests.Response) -> str | None:
+def _get_error_details_from_response(
+    response: requests.Response,
+) -> tuple[str | None, str | None]:
     response_dict = json.loads(response.text)
-    return response_dict.get("traceId")
+    error_details = response_dict.get("detail")
+    if not error_details:
+        errors = response_dict.get("errors", {})
+        error_details = "; ".join(
+            f"{field}: {message}"
+            for field, messages in errors.items()
+            for message in messages
+        )
+    return error_details, response_dict.get("traceId")
 
 
 class Gateway:
@@ -147,13 +157,15 @@ class Gateway:
             )
             return response
         except requests.exceptions.RequestException as e:
-            trace_id = (
-                _get_trace_id_from_response(e.response)
+            error_details, trace_id = (
+                _get_error_details_from_response(e.response)
                 if e.response is not None
-                else None
+                else (None, None)
             )
             error_msg = (
-                f"Failed to create data catalog entry. correlation-id: {trace_id}"
+                f"Failed to create data catalog entry. "
+                f"{error_details + ' ' if error_details else ''}"
+                f"correlation-id: {trace_id}"
             )
 
             logger.error(error_msg)

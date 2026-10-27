@@ -37,7 +37,16 @@ def test_import_dataset_success(mock_gateway, mock_post):
 def test_import_dataset_failure(mock_gateway, mock_post):
     """Test dataset import failure."""
 
-    response_body = {"type":"BusinessError","traceId":"8b01e7eb14484611add6138618daf112"}
+    validation_message = "Either SchemaVersionId or SchemaId must be provided. Schemas are not created on import."
+    trace_id = "8b01e7eb14484611add6138618daf112"
+    response_body = {
+        "type": "ValidationError",
+        "title": "One or more validation errors occurred.",
+        "status": 400,
+        "detail": f"Validation failed: -- SchemaVersionId: {validation_message}",
+        "errors": {"SchemaVersionId": [validation_message]},
+        "traceId": trace_id,
+    }
 
     mock_response = MagicMock()
     mock_response.return_value.status_code = 400
@@ -50,7 +59,8 @@ def test_import_dataset_failure(mock_gateway, mock_post):
     mock_post.return_value = mock_response
 
     with pytest.raises(RequestException) as e:
-        mock_gateway.import_dataset("dataset_name", "dataset_description", "schema_id", {"tag": "value"}, "folder_id")
+        mock_gateway.import_dataset("dataset_name", "dataset_description", None, {"tag": "value"}, "folder_id")
 
-    assert e.value.args[0] == f"Failed to create data catalog entry. correlation-id: {response_body['traceId']}"
+    assert validation_message in e.value.args[0]
+    assert f"correlation-id: {trace_id}" in e.value.args[0]
     mock_post.assert_called_once()

@@ -98,9 +98,10 @@ def test_save_gateway_failure_triggers_rollback(mock_dependencies, storage_handl
     folder_id = uuid.uuid4()
     target_path = f".../{folder_id}"
     datacatalogue, _, _ = mock_dependencies
+    validation_message = "Either SchemaVersionId or SchemaId must be provided. Schemas are not created on import."
 
     datacatalogue.gateway.import_dataset = MagicMock()
-    datacatalogue.gateway.import_dataset.side_effect = RequestException()
+    datacatalogue.gateway.import_dataset.side_effect = RequestException(validation_message)
 
     storage_handler._DataCatalogue__build_storage_table_root_url.return_value = target_path
 
@@ -114,6 +115,7 @@ def test_save_gateway_failure_triggers_rollback(mock_dependencies, storage_handl
 
     assert "error" in result
     assert "error_type" in result
+    assert validation_message in result["error"]
 
     datacatalogue.gateway.import_dataset.assert_called_once()
     datacatalogue._rollback_write.assert_called_once()
