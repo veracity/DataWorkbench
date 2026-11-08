@@ -4,6 +4,7 @@ from unittest.mock import patch, MagicMock
 from dataworkbench.gateway import Gateway
 from requests.exceptions import RequestException
 import json
+import uuid
 
 @pytest.fixture
 def mock_gateway():
@@ -32,6 +33,31 @@ def test_import_dataset_success(mock_gateway, mock_post):
 
     assert result == {"status": "success"}
     mock_post.assert_called_once()
+    payload = mock_post.call_args.kwargs["json"]
+    assert payload["schemaId"] == "schema_id"
+    assert "schemaVersionId" not in payload
+
+
+def test_import_dataset_with_schema_version_id(mock_gateway, mock_post):
+    mock_response = MagicMock()
+    mock_response.json.return_value = {"status": "success"}
+    mock_response.raise_for_status = MagicMock()
+    mock_post.return_value = mock_response
+    schema_version_id = uuid.uuid4()
+
+    result = mock_gateway.import_dataset(
+        "dataset_name",
+        "dataset_description",
+        None,
+        {"tag": "value"},
+        "folder_id",
+        schema_version_id=schema_version_id,
+    )
+
+    assert result == {"status": "success"}
+    payload = mock_post.call_args.kwargs["json"]
+    assert payload["schemaVersionId"] == str(schema_version_id)
+    assert "schemaId" not in payload
 
 
 def test_import_dataset_failure(mock_gateway, mock_post):

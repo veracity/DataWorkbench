@@ -31,19 +31,27 @@ def storage_handler():
 
 @patch.object(DeltaStorage, "write", return_value="mock_write_success")
 @patch.object(Gateway, "import_dataset", return_value="mock_datacatalog_success")
-def test_save_dataset(mock_write, mock_gateway_import, mock_dependencies):
+def test_save_dataset(mock_gateway_import, mock_write, mock_dependencies):
     """Test saving a dataset without making real API calls"""
     datacatalogue, _, _ = mock_dependencies
+    schema_id = uuid.uuid4()
+    tags = {"environment": "test"}
 
     result = datacatalogue.save(
-        df=MagicMock(spec=DataFrame),
-        dataset_name="test_dataset",
-        dataset_description="test description"
+        MagicMock(spec=DataFrame),
+        "test_dataset",
+        "test description",
+        schema_id,
+        tags,
     )
 
     assert result == "mock_datacatalog_success"
     mock_write.assert_called_once()
     mock_gateway_import.assert_called_once()
+    gateway_args = mock_gateway_import.call_args.args
+    assert gateway_args[:4] == ("test_dataset", "test description", schema_id, tags)
+    assert isinstance(gateway_args[4], uuid.UUID)
+    assert mock_gateway_import.call_args.kwargs == {"schema_version_id": None}
 
 
 @pytest.mark.parametrize("folder_id", ["", 123, "5f69754e-37a0-431b-aa3e-3f5e361017fa"])
@@ -89,8 +97,57 @@ def test_save_dataset_invalid_tags(mock_dependencies, tags):
             df=MagicMock(spec=DataFrame),
             dataset_name="name",
             dataset_description="description",
+            schema_id=uuid.uuid4(),
             tags=tags
         )
+
+@pytest.mark.parametrize(
+    "identifier",
+    [None, "5f69754e-37a0-431b-aa3e-3f5e361017fa", 123],
+)
+def test_save_dataset_invalid_schema_version_id(mock_dependencies, identifier):
+    datacatalogue, _, _ = mock_dependencies
+
+    with pytest.raises(ValueError if identifier is None else TypeError):
+        datacatalogue.save(
+            df=MagicMock(spec=DataFrame),
+            dataset_name="name",
+            dataset_description="description",
+            schema_version_id=identifier,
+        )
+
+
+def test_save_dataset_rejects_both_schema_identifiers(mock_dependencies):
+    datacatalogue, _, _ = mock_dependencies
+
+    with pytest.raises(ValueError, match="cannot both be provided"):
+        datacatalogue.save(
+            df=MagicMock(spec=DataFrame),
+            dataset_name="name",
+            dataset_description="description",
+            schema_id=uuid.uuid4(),
+            schema_version_id=uuid.uuid4(),
+        )
+
+
+@patch.object(DeltaStorage, "write", return_value="mock_write_success")
+@patch.object(Gateway, "import_dataset", return_value="mock_datacatalog_success")
+def test_save_dataset_with_schema_version_id(
+    mock_gateway_import, mock_write, mock_dependencies
+):
+    datacatalogue, _, _ = mock_dependencies
+    schema_version_id = uuid.uuid4()
+
+    result = datacatalogue.save(
+        df=MagicMock(spec=DataFrame),
+        dataset_name="test_dataset",
+        dataset_description="test description",
+        schema_version_id=schema_version_id,
+    )
+
+    assert result == "mock_datacatalog_success"
+    mock_write.assert_called_once()
+    assert mock_gateway_import.call_args.kwargs["schema_version_id"] == schema_version_id
 
 
 def test_save_gateway_failure_triggers_rollback(mock_dependencies, storage_handler):
@@ -110,7 +167,8 @@ def test_save_gateway_failure_triggers_rollback(mock_dependencies, storage_handl
     result = datacatalogue.save(
         df=MagicMock(spec=DataFrame),
         dataset_name="name",
-        dataset_description="description"
+        dataset_description="description",
+        schema_id=uuid.uuid4(),
     )
 
     assert "error" in result
@@ -138,7 +196,8 @@ def test_save_gateway_failure_and_rollback_fails(mock_dependencies, storage_hand
     result = datacatalogue.save(
         df=MagicMock(spec=DataFrame),
         dataset_name="name",
-        dataset_description="description"
+        dataset_description="description",
+        schema_id=uuid.uuid4(),
     )
 
     assert "error" in result
