@@ -70,7 +70,7 @@ class DataCatalogue:
         df: DataFrame,
         dataset_name: str,
         dataset_description: str,
-        schema_id: uuid.UUID | None = None,
+        schema_id: uuid.UUID,
         tags: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """
@@ -84,7 +84,7 @@ class DataCatalogue:
             df: Spark DataFrame containing the dataset to be saved
             dataset_name: Name of the dataset for the catalog
             dataset_description: Description of the dataset's purpose and contents
-            schema_id: Optional UUID for the dataset's schema
+            schema_id: UUID for the dataset's schema
             tags: Optional metadata tags as key-value pairs
 
         Returns:
@@ -102,7 +102,7 @@ class DataCatalogue:
             ...     df,
             ...     "Customer Data",
             ...     "Monthly customer demographic data",
-            ...     "550e8400-e29b-41d4-a716-446655440000",
+            ...     uuid.UUID("550e8400-e29b-41d4-a716-446655440000"),
             ...     {"environment": ["test"]}
             ... )
         """
@@ -115,6 +115,9 @@ class DataCatalogue:
 
         if not isinstance(dataset_description, str):
             raise TypeError("dataset_description must be a string")
+
+        if not isinstance(schema_id, uuid.UUID) or not schema_id:
+            raise TypeError("schema_id must be a non-empty UUID")        
 
         if tags is not None and not isinstance(tags, dict):
             raise TypeError("tags must be a dictionary or None")
