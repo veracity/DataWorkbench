@@ -72,6 +72,7 @@ class DataCatalogue:
         dataset_description: str,
         schema_id: uuid.UUID | None = None,
         tags: dict[str, str] | None = None,
+        schema_version_id: uuid.UUID | None = None,
     ) -> dict[str, Any]:
         """
         Save a dataset to storage and register it with the data catalog.
@@ -84,8 +85,11 @@ class DataCatalogue:
             df: Spark DataFrame containing the dataset to be saved
             dataset_name: Name of the dataset for the catalog
             dataset_description: Description of the dataset's purpose and contents
-            schema_id: Optional UUID for the dataset's schema
+            schema_id: UUID for the dataset's schema. Mutually exclusive with
+                schema_version_id.
             tags: Optional metadata tags as key-value pairs
+            schema_version_id: UUID for the dataset schema version. Mutually
+                exclusive with schema_id.
 
         Returns:
             Dict[str, Any]: Response from the Gateway service containing dataset
@@ -102,8 +106,10 @@ class DataCatalogue:
             ...     df,
             ...     "Customer Data",
             ...     "Monthly customer demographic data",
-            ...     "550e8400-e29b-41d4-a716-446655440000",
-            ...     {"environment": ["test"]}
+            ...     schema_version_id=uuid.UUID(
+            ...         "550e8400-e29b-41d4-a716-446655440000"
+            ...     ),
+            ...     tags={"environment": ["test"]},
             ... )
         """
         # Validate input parameters
@@ -119,6 +125,20 @@ class DataCatalogue:
         if tags is not None and not isinstance(tags, dict):
             raise TypeError("tags must be a dictionary or None")
 
+        if schema_id is None and schema_version_id is None:
+            raise ValueError("Either schema_id or schema_version_id must be provided")
+
+        if schema_id is not None and schema_version_id is not None:
+            raise ValueError("schema_id and schema_version_id cannot both be provided")
+
+        if schema_id is not None and not isinstance(schema_id, uuid.UUID):
+            raise TypeError("schema_id must be a UUID")
+
+        if schema_version_id is not None and not isinstance(
+            schema_version_id, uuid.UUID
+        ):
+            raise TypeError("schema_version_id must be a UUID")
+
         # Generate folder_id
         folder_id = uuid.uuid4()
 
@@ -131,7 +151,12 @@ class DataCatalogue:
             try:
                 # Register the dataset with the Gateway API
                 return self.gateway.import_dataset(
-                    dataset_name, dataset_description, schema_id, tags or {}, folder_id
+                    dataset_name,
+                    dataset_description,
+                    schema_id,
+                    tags or {},
+                    folder_id,
+                    schema_version_id=schema_version_id,
                 )
             except Exception as e:
                 self._rollback_write(folder_id)

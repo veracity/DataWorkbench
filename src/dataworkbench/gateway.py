@@ -111,6 +111,7 @@ class Gateway:
         schema_id: UUID | None,
         tags: dict[str, str],
         folder_id: UUID,
+        schema_version_id: UUID | None = None,
     ) -> dict[str, Any]:
         """
         Imports a dataset into the DataWorkbench.
@@ -120,9 +121,12 @@ class Gateway:
         Args:
             dataset_name: Name of the dataset to be imported
             dataset_description: Description of the dataset's purpose and contents
-            schema_id: UUID identifier for the dataset's schema
+            schema_id: UUID identifier for the dataset's schema. Mutually
+                exclusive with schema_version_id.
             tags: Metadata tags as key-value pairs for categorization and discovery
             folder_id: UUID identifier for the folder where the dataset will be stored
+            schema_version_id: UUID identifier for the dataset's schema version.
+                Mutually exclusive with schema_id.
 
         Returns:
             Dict[str, Any]: JSON response from the API or an error message dictionary
@@ -144,9 +148,12 @@ class Gateway:
             "datasetFolderId": str(folder_id),
             "datasetName": dataset_name,
             "datasetDescription": dataset_description,
-            "schemaId": str(schema_id) if schema_id else schema_id,
             "tags": tags,
         }
+        if schema_id is not None:
+            payload["schemaId"] = str(schema_id)
+        if schema_version_id is not None:
+            payload["schemaVersionId"] = str(schema_version_id)
 
         logger.info(f"Sending request to import dataset: {dataset_name}")
 

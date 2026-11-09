@@ -72,6 +72,8 @@ datacatalogue.save(
 #### Using an existing schema
 When you have an existing schema that you want to reuse:
 ```python
+import uuid
+
 from dataworkbench import DataCatalogue
 
 df = spark.createDataFrame([("a", 1), ("b", 2), ("c", 3)], ["letter", "number"])
@@ -82,15 +84,30 @@ datacatalogue.save(
     "Dataset Name",
     "Description",
     tags={"environment": ["test"]},
-    schema_id="abada0f7-acb4-43cf-8f54-b51abd7ba8b1"  # Using an existing schema ID
+    schema_id=uuid.UUID("abada0f7-acb4-43cf-8f54-b51abd7ba8b1"),
 )
 ```
+#### Using an existing schema version
+When a specific schema version is required:
+```python
+import uuid
+
+datacatalogue.save(
+    df,
+    "Dataset Name",
+    "Description",
+    schema_version_id=uuid.UUID("abada0f7-acb4-43cf-8f54-b51abd7ba8b1"),
+    tags={"environment": ["test"]},
+)
+```
+
+Provide exactly one of `schema_id` or `schema_version_id`.
 
 ## API Reference
 
 ### DataCatalogue
 
-- `save(df, name, description, schema_id=None, tags=None)`: Save a Spark DataFrame to the Data Workbench Data Catalogue
+- `save(df, name, description, schema_id=None, tags=None, schema_version_id=None)`: Save a Spark DataFrame to the Data Workbench Data Catalogue. Provide exactly one schema identifier.
 
 
 ## License
